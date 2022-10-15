@@ -1,0 +1,17 @@
+version: "3.1"
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-CU18-ubuntu-20.04
+    user: '0:0'
+    container_name: sqlserver
+    ports:
+      - 11433:1433
+    entrypoint: /.env/entrypoint.sh
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_PID: Express
+      SA_PASSWORD: _Password_
+    volumes:
+      - .devenv/sqlserver:/.env
+#      - ~/docker/sqlserver-data:/var/opt/mssql
