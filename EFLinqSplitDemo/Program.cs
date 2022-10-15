@@ -20,7 +20,7 @@ namespace EFLinqSplitDemo
         private static readonly RichString CaseBeginPrefix = DarkBlue(">>> ");
         private static readonly RichString CaseEndPrefix = DarkBlue("<<< ");
         private static readonly RichString CaseSumPrefix = DarkMagenta("==> ");
-        private static IEnumerable<Guid> Ids = null; //< To be filled with some existing guids..
+        private static IEnumerable<Guid> Ids = null; //< To be filled with some existing guids on context creation..
 
         private static Database GetDatabase(ref IEnumerable<Guid> ids, int numids)
         {
@@ -44,7 +44,7 @@ namespace EFLinqSplitDemo
             };
             return result;
         }
-
+        
         private static int GetNearestPaddingFor(int count)
         {
             foreach (var slot in  PaddingSlots)
@@ -80,6 +80,26 @@ namespace EFLinqSplitDemo
             var padcount = GetNearestPaddingFor(ids.Length);
             ids = ids.Union(Enumerable.Range(0, padcount).Select(x => ids.Last()).ToArray()).ToArray();
             return db.Items.Where(x => ids.Contains(x.Id)).ToArray();
+        }
+        
+        private static Item[] GetItemsUsingSqlQueryWithContains(Database db)
+        {
+            var ids = string.Join(",", Ids.Take(4));
+            var inner = db.Database.SqlQuery<Guid>(
+                @"SELECT CAST([value] AS UNIQUEIDENTIFIER) FROM STRING_SPLIT(@ids, ',')",
+                new SqlParameter("@ids", ids)
+            );
+            return db.Items.Where(x => inner.Contains(x.Id)).ToArray();
+        }
+        
+        private static Item[] GetItemsUsingSqlQueryWithAny(Database db)
+        {
+            var ids = string.Join(",", Ids.Take(4));
+            var inner = db.Database.SqlQuery<Guid>(
+                @"SELECT CAST([value] AS UNIQUEIDENTIFIER) FROM STRING_SPLIT(@ids, ',')",
+                new SqlParameter("@ids", ids)
+            );
+            return db.Items.Where(x => inner.Any(i => i == x.Id)).ToArray();
         }
 
         private static Item[] GetItemsUsingSplitString(Database db)
@@ -128,26 +148,6 @@ namespace EFLinqSplitDemo
             qdb.ReinitializeTempTableContainer();
             return result;
         }
-
-        private static Item[] GetItemsUsingSqlQueryWithContains(Database db)
-        {
-            var ids = string.Join(",", Ids.Take(4));
-            var inner = db.Database.SqlQuery<Guid>(
-                @"SELECT CAST([value] AS UNIQUEIDENTIFIER) FROM STRING_SPLIT(@ids, ',')",
-                new SqlParameter("@ids", ids)
-            );
-            return db.Items.Where(x => inner.Contains(x.Id)).ToArray();
-        }
-        
-        private static Item[] GetItemsUsingSqlQueryWithAny(Database db)
-        {
-            var ids = string.Join(",", Ids.Take(4));
-            var inner = db.Database.SqlQuery<Guid>(
-                @"SELECT CAST([value] AS UNIQUEIDENTIFIER) FROM STRING_SPLIT(@ids, ',')",
-                new SqlParameter("@ids", ids)
-            );
-            return db.Items.Where(x => inner.Any(i => i == x.Id)).ToArray();
-        }
         
         private static void RunCase(string story, Func<Item[]> @delegate)
         {
@@ -174,13 +174,13 @@ namespace EFLinqSplitDemo
             RunCase("Selecting some items by id, using Contains()", () => GetTwoUsingContains(db));
             RunCase("Selecting some items by id, using Contains() with padding", () => GetTwoUsingPaddedContains(db));
             RunCase("Selecting some more items by id, using Contains() with padding", () => GetSixteenUsingPaddedContains(db)); 
+            RunCase("Selecting some items by id, using an SqlQuery w/ Any", () => GetItemsUsingSqlQueryWithAny(db));
+            RunCase("Selecting some items by id, using an SqlQuery w/ Contains", () => GetItemsUsingSqlQueryWithContains(db));
             RunCase("Selecting some items by id, using Contains+StringSplit", () => GetItemsUsingSplitString(db));
             RunCase("Selecting some items by id, using AsQueryableValues", () => GetItemsUsingAsQueryableValues(db));
             RunCase("Selecting some items by id, using a Temporary Table w/ Any", () => GetItemsUsingTempTableWithAny(db));
             RunCase("Selecting some items by id, using a Temporary Table w/ Contains", () => GetItemsUsingTempTableWithContains(db));
             RunCase("Selecting some items by id, using a Temporary Table w/ Join", () => GetItemsUsingTempTableWithJoin(db));
-            RunCase("Selecting some items by id, using an SqlQuery w/ Any", () => GetItemsUsingSqlQueryWithAny(db));
-            RunCase("Selecting some items by id, using an SqlQuery w/ Contains", () => GetItemsUsingSqlQueryWithContains(db));
         }
     }
 }
