@@ -11,8 +11,13 @@ GO
 USE demo;
 GO
 
-/* Possible alternate to STRING_SPLIT for SqlServer < 2016 */
-/* See: https://stackoverflow.com/questions/10914576/t-sql-split-string */
+/* Possible alternate to STRING_SPLIT for SqlServer < 2016
+   See: https://stackoverflow.com/questions/10914576/t-sql-split-string
+   Notes:
+     In the end I've not used this, but thought it maybe helpfull
+     to keep this code around, just in case it is usefull
+     for use with older SqlServer versions. (pruiz)
+*/
 CREATE FUNCTION dbo.SplitString
 (
   @List     nvarchar(max),

@@ -1,0 +1,28 @@
+EFLinqSplitDemo
+===============
+
+A demostration for different options to handle lookups by an array of values using EF/Linq while reducing the amount of different queries/plans being created/sent to sqlserver.
+
+I've tried different techiniques, some with success, oders not so much:
+
+ 1. GetAllNoFilter => Fetch all items, just as baseline and to ensure EF setup is ok.
+ 2. GetTwoUsingContains => Fetches two items, using csharp/linq .Contains(), which get's translated into a SELECT ... WHERE ... IN (...).
+	- Example of a problematic query, where sqlserver will end up with a different query plans for every number of arguments to IN ().
+ 3. GetTwoUsingPaddecContains => Attempt at using padding for IN clause, by repeating the last item on list a few times as padding.
+	- As I expected, this does not work, as the EF/Linq engine optimices duplicated entries before construting the SQL statements.
+ 4. GetSixteenUsingPaddedContains => A variation of previous one to demostrate rounding padding size to diff chunks.
+ 5. GetItemUsingSqlQueryWithAny => Use an EF's SqlQuery and 'Any()' for building an inner SQL statement to pass to IN clause, using STRING_SPLIT.
+	- While the SqlQuery works, the final query ends up making use a chained UNION selects for composing the IN clause arguments.
+ 6. GetItemsUsingSqlQueryWithContains => Variation of previous method, but using 'Contains()' instead of 'Any()'.
+	- As w/ prev method, while it "works", the EF engine ends up passing a constant list of values to IN clause, so not a solution either.
+ 7. GetItemsUsingSplitString => Actually expose STRING_SPLIT to EF as a TableValue function, so it can be understood by EF's Linq engine during query compiling.
+	- This, as expected, provides a successfull solution to the issue, as the generated query is constant no matter how many args are passed for filtering.
+ 8. GetItemsUsingAsQueryableValues => Another alternative to pass the list of filtering values as a single parameter, by using BlazarTech's AsQueryableValues extensions which uses (sqlserver's side) serialization instead of STRING_SPLIT, this passing the list of values to split as an string. Depending on the supported features of the sqlserver being used the list of values is passed as an XML or JSON string.
+	- This is another successfull solution, which generates a constant SQL statement no matter how much filtering values are in use. It also does some SQL statement rewriting by means of intercepting EF's generated SqlCommand, so this maybe bit more fragile though.
+ 9. GetItemsUsingTempTableWithAny => This is an implementation using a Temporary Table to hold the list of filtering values, as to make it easier for SqlServer's query planner to optimize the final execution.
+	- This is working as expected and provides a constant Sql statement w/o regard to number of filtering values given, and as said, this probably provides the best performance. However, care must be taken to not reuse the TempTable within a given session w/o cleaning/repopulating it.
+10. GetItemsUsingTempTableWithContains => Another variation of previous technique, but using 'Contains()' instead of any.
+	- This is working, and actually generates the same Sql statements of previous one, probably due to EFLinq engine's visitors optimizing both constructions to the same abstract tree.
+11. GetItemsUsingTempTableWithJoin => Yet another variation, but using a Linq's Join() for matching results to temporary table. I did this one just to ensure for complex queries this may be also an option, as it may help on convertir/adapting existing code, maybe.
+	- This is working, and generates clean Sql statement with an INNER JOIN against temporary table, as expected.
+
